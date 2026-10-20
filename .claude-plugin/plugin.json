@@ -1,8 +1,11 @@
 {
   "name": "factory",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Saleshandy factory: ticket to spec, build, review, test and ship, with human approval gates.",
-  "author": { "name": "Prashant", "url": "https://github.com/prashant-saleshandy" },
+  "author": {
+    "name": "Prashant",
+    "url": "https://github.com/prashant-saleshandy"
+  },
   "repository": "https://github.com/prashant-saleshandy/saleshandy-factory",
   "license": "MIT"
 }

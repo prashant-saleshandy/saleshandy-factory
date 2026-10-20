@@ -35,7 +35,14 @@ The workspace is the folder that holds the Saleshandy repos and `worktrees/`. Ea
 
 `context` → `spec` → for each phase: `build` → `review` → `test` → `ship`.
 
-Record each stage change with `work.mjs set stage <name>`. At the end of each stage, tell the user in one sentence that a new session costs fewer tokens: they type `/clear`, and the factory continues from the state. If the user continues in this session, continue. The short loops (test → build → review → test) stay in one session.
+Record each stage change with `work.mjs set stage <name>`. At the end of each stage, tell the user in one sentence that a new session costs fewer tokens: they type `/clear`, and the factory continues from the state. In the same message, give the model line that `work.mjs set stage` prints. If the user continues in this session, continue. The short loops (test → build → review → test) stay in one session.
+
+## Models
+
+Run `work.mjs models` one time at the start of a stage.
+
+- The main session runs on the model that the user selects. If the session model is not the model for the stage, tell the user in one sentence which `/model` and `/effort` to type. Then continue.
+- For each factory subagent, pass `model` and `effort` in the Agent call, with the values of its role. A hook blocks other values.
 
 ## Rules for all stages
 

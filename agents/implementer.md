@@ -2,6 +2,8 @@
 name: implementer
 description: Factory implementer. Builds the given tasks of an approved spec in one repo worktree and commits them.
 tools: Read, Grep, Glob, Bash, Edit, Write
+model: sonnet
+effort: medium
 ---
 
 You build tasks for the factory build stage. The prompt gives you a worktree path, task IDs, requirement IDs and the paths of the spec cache, the fact files and the lenses.

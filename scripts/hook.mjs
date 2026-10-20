@@ -5,7 +5,7 @@ import { existsSync, openSync, readSync, fstatSync, closeSync, mkdirSync, rmSync
 import { join, relative, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
-  APPROVAL_OPTIONS, HOME_DIR, readJson, writeJson, readStdinJson, config, now, workDirFromPath,
+  APPROVAL_OPTIONS, HOME_DIR, ROLE_AGENT, modelAdvice, readJson, writeJson, readStdinJson, config, now, workDirFromPath,
   loadState, saveState, specGate, fileHash, factoryDir, sessionFile, sessionWork,
 } from './lib.mjs';
 
@@ -50,7 +50,10 @@ function onSessionStart() {
     context('SessionStart', `This directory belongs to factory work ${s?.ticket}. If the user wants to continue it, they type /factory.`);
   }
   const status = statusText(work);
-  if (status) context('SessionStart', `Factory session (id ${sid}). Current state:\n${status}\nRead only the handoff files that the current stage needs. Continue with the factory skill for this stage.`);
+  const stage = loadState(work)?.stage;
+  const want = config().stages[stage];
+  const modelLine = want ? `\nModel: this session runs on ${input.model || 'an unknown model'}. ${modelAdvice(stage)} If the session model is not ${want.model}, tell the user this in one sentence.` : '';
+  if (status) context('SessionStart', `Factory session (id ${sid}). Current state:\n${status}${modelLine}\nRead only the handoff files that the current stage needs. Continue with the factory skill for this stage.`);
 }
 
 function onUserPromptSubmit() {
@@ -140,14 +143,29 @@ function withAgents(fn) {
     const file = join(AGENTS_DIR, `${sid}.json`);
     const st = readJson(file, { res: {}, stopped: [] });
     for (const [k, v] of Object.entries(st.res)) if (Date.now() - Date.parse(v.at) > 3 * 3600e3) delete st.res[k];
+    // A stopped ID waits for its PostToolUse for one hour at most.
+    st.stopped = (st.stopped || []).filter((s) => typeof s === 'object' && Date.now() - Date.parse(s.at) < 3600e3);
     const result = fn(st);
     writeJson(file, st);
     return result;
   } finally { rmSync(lock, { recursive: true, force: true }); }
 }
 
+// A factory subagent must run with a model and effort that config.json gives for one of its roles.
+function checkAgentModel() {
+  const type = (input.tool_input?.subagent_type || '').replace(/^factory:/, '');
+  const roles = Object.entries(ROLE_AGENT).filter(([, agent]) => agent === type).map(([role]) => role);
+  if (!roles.length || !(input.tool_input?.subagent_type || '').startsWith('factory:')) return;
+  const agents = config().agents;
+  const allowed = roles.map((r) => ({ role: r, ...agents[r] }));
+  const { model, effort } = input.tool_input;
+  if (allowed.some((a) => a.model === model && a.effort === effort)) return;
+  deny(`factory:${type} must run with one of these values: ${allowed.map((a) => `${a.role}: model "${a.model}", effort "${a.effort}"`).join('; ')}. Pass model and effort in the Agent call.`);
+}
+
 function onAgentPre() {
   if (!isFactorySession()) return;
+  checkAgentModel();
   const max = config().maxSubagents;
   const verdict = withAgents((st) => {
     const running = Object.keys(st.res).length;
@@ -165,8 +183,8 @@ function onAgentPost() {
     const r = st.res[input.tool_use_id];
     if (!r) return;
     r.agentId = resp.agentId || null;
-    const done = resp.status === 'completed' || (r.agentId && st.stopped.includes(r.agentId));
-    if (done) { delete st.res[input.tool_use_id]; st.stopped = st.stopped.filter((a) => a !== r.agentId); }
+    const done = resp.status === 'completed' || (r.agentId && st.stopped.some((s) => s.id === r.agentId));
+    if (done) { delete st.res[input.tool_use_id]; st.stopped = st.stopped.filter((s) => s.id !== r.agentId); }
   });
 }
 
@@ -180,7 +198,7 @@ function onSubagentStop() {
   withAgents((st) => {
     const key = Object.keys(st.res).find((k) => st.res[k].agentId === input.agent_id);
     if (key) delete st.res[key];
-    else st.stopped = [...st.stopped.slice(-50), input.agent_id];
+    else st.stopped = [...st.stopped.slice(-50), { id: input.agent_id, at: now() }];
   });
 }
 

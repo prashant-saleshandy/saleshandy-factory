@@ -3,7 +3,7 @@
 import { existsSync, readdirSync, mkdirSync, statSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
-  APPROVAL_OPTIONS, HOME_DIR, workDirFromPath, factoryDir, loadState, saveState, writeJson,
+  APPROVAL_OPTIONS, HOME_DIR, ROLE_AGENT, modelAdvice, workDirFromPath, factoryDir, loadState, saveState, writeJson,
   sessionFile, specGate, fileHash, tryGit, now, config,
 } from './lib.mjs';
 
@@ -19,6 +19,7 @@ const HELP = `work.mjs commands:
   spec-version <n>                             record a new Confluence version of the spec
   spec-cache --version <n> --from <file>       replace spec.cache.md with a fresh copy of the Confluence page
   gate                                         show if code edits are allowed
+  models                                       model and effort for each stage and subagent role
 Options: --work <dir> selects the work folder. The default is the current directory.`;
 
 const argv = process.argv.slice(2);
@@ -156,6 +157,7 @@ const commands = {
     o[parts.at(-1)] = value;
     saveState(work, s);
     console.log(`${key} = ${JSON.stringify(value)}`);
+    if (key === 'stage') console.log(`Next session: ${modelAdvice(value)}`);
   },
 
   'request-approval'() {
@@ -219,6 +221,14 @@ const commands = {
   },
 
   config() { console.log(JSON.stringify({ ...config(), home: HOME_DIR })); },
+
+  models() {
+    const c = config();
+    console.log('Main session (you select it with /model and /effort):');
+    for (const [stage, m] of Object.entries(c.stages)) console.log(`  ${stage}: ${m.model}, ${m.effort}`);
+    console.log('Subagents (pass model and effort in each Agent call; a hook blocks other values):');
+    for (const [role, m] of Object.entries(c.agents)) console.log(`  ${role}: subagent_type factory:${ROLE_AGENT[role]}, model ${m.model}, effort ${m.effort}`);
+  },
 };
 
 if (!cmd || !commands[cmd]) { console.log(HELP); process.exit(cmd ? 1 : 0); }

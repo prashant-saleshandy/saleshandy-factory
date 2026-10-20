@@ -23,6 +23,11 @@ Write `.factory/build-plan.md`. Each task gets one line: ID, repo, requirement I
 ## 3. Subagents
 
 - Start the minimum number of `factory:implementer` subagents. Start at most `maxSubagents` at the same time.
+- Select the role of each task, and pass the model and effort of that role:
+  - `implementer` for a normal task.
+  - `implementer-hard` for a task that touches security, concurrency, money or plan limits, a data migration, or a contract between services.
+  - `implementer-hard-cross-repo` for a hard task that changes more than one repo.
+- Record the role of each task in `build-plan.md`.
 - Give each implementer one repo worktree. Two implementers never work in the same repo at the same time.
 - Give pointers, not content: the worktree path, the task IDs, the requirement IDs, the fact files, and the paths of `spec.cache.md` and `lenses.md`.
 - If an implementer reports a problem with the spec, stop all work and tell the user.

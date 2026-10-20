@@ -14,7 +14,7 @@ Method credit: the question rounds adapt the "grilling" skill by Matt Pocock (gi
 Decide what to read from the scope of the work. Do not stop at one or two layers. Follow each related flow from its entry point to its end, across repos, until you know the real constraints. Typical constraints are in code paths, data models, queues, crons, other services, feature flags, plan limits and data scale. If a design decision depends on volume, read the numbers through Grafana (`grafana` for prod, `pyxis-grafana` for staging).
 
 - Facts are your job. Decisions are the user's job. Never ask the user for a fact that you can find.
-- For a big area, give one question to one `factory:researcher` subagent. Start at most `maxSubagents` at the same time.
+- For a big area, give one question to one `factory:researcher` subagent, with the model and effort of the `researcher` role. Start at most `maxSubagents` at the same time.
 - Each researcher writes one file `.factory/facts/<topic>.md` and returns a short summary.
 - Keep `.factory/facts.md` as an index: one line for each topic file, with what it answers.
 

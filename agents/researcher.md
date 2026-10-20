@@ -2,6 +2,8 @@
 name: researcher
 description: Factory researcher. Answers one research question about the Saleshandy code, data or scale, and writes the facts with citations to one file.
 tools: Read, Grep, Glob, Bash, Write
+model: opus
+effort: medium
 ---
 
 You answer one research question for the factory spec stage. The prompt gives you the question, the output file and the work folder.

@@ -44,7 +44,8 @@ The factory makes `worktrees/<KEY>/` with one git worktree for each repo and a `
 
 Your files are in `~/.claude/factory/`. They are not in this repo.
 
-- `config.json` holds `maxSubagents` (default 3) and `contextLimitTokens` (default 100000).
+- `config.json` holds `maxSubagents` (default 3), `contextLimitTokens` (default 100000), and the model and effort for each stage (`stages`) and each subagent role (`agents`).
+- Only you can change the model of the main session, with `/model` and `/effort`. The factory tells you the values for each stage. A hook blocks a factory subagent call with a model or effort that `agents` does not give.
 - `notes/<stage>.md` holds your rules for a stage, in plain words. The agent proposes a new rule after you correct a stage in the same way two times.
 - `profiles/<repo>.md` holds temporary notes about a repo.
 
@@ -56,7 +57,7 @@ Your files are in `~/.claude/factory/`. They are not in this repo.
 | UserPromptSubmit | If the prompt starts with `/factory`, marks the session as a factory session. |
 | PreToolUse on Edit and Write | Blocks code edits until the current spec version has an approval. Blocks edits to state files and staging worktrees. |
 | PreToolUse on Bash | Blocks rebase, force push, a raw push or PR command, and changes to staging worktrees. |
-| PreToolUse on Agent | Blocks more than `maxSubagents` subagents at the same time. |
+| PreToolUse on Agent | Blocks more than `maxSubagents` subagents at the same time, and a factory subagent with the wrong model or effort. |
 | PostToolUse on AskUserQuestion | If you select an approval option, records the approval. No other answer counts. |
 | Stop | If the context passes `contextLimitTokens`, tells the agent to write the handoff. |
 

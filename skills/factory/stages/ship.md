@@ -27,13 +27,10 @@ If the work is phased, add a comment to the phase task. If not, add it to the ep
 The release doc is for prod only. It contains only the PRs to `main`, the prod SQL and the prod steps. It contains no staging references.
 
 1. Make it again from the start in each phase. Do not append to the old version.
-2. Compare each work branch with `main`: `git -C <path> diff origin/main...HEAD --stat`, and the full diff of the TypeORM entity files.
-3. Write the prod SQL from the final entity state compared with `main`. Write one combined statement for each table, so that create-then-alter steps from staging never reach prod.
-4. Add the steps from `.factory/release-notes.md`.
-5. Put the steps in a safe order. For example, the SQL before the code that needs it, and the backend before the frontend that calls it.
-6. Fill `ROOT/templates/release-doc.md` and write it to `.factory/release-doc.md`.
-7. Show it to the user. Run `work.mjs request-approval release`. Ask with AskUserQuestion: "Approve the release doc" or "Discuss changes".
-8. After approval, make or update the Confluence child page `Release doc` under the parent page. Record it with `work.mjs set release.pageId <id>` and `work.mjs set release.url <url>`.
+2. Start one `factory:release-writer` subagent with the model and effort of the `release-writer` role. Give it these pointers: the work folder, the worktree paths, the main PR links, `ROOT/templates/release-doc.md`, and the output path `.factory/release-doc.md`.
+3. Read the assumptions that the release writer returns. Show them to the user with the release doc.
+4. Run `work.mjs request-approval release`. Ask with AskUserQuestion: "Approve the release doc" or "Discuss changes".
+5. After approval, make or update the Confluence child page `Release doc` under the parent page. Record it with `work.mjs set release.pageId <id>` and `work.mjs set release.url <url>`.
 
 ## 5. Next phase
 

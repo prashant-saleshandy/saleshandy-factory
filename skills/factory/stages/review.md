@@ -4,7 +4,7 @@ Goal: the code and the spec agree one to one. The reviewer reports. It fixes not
 
 ## 1. Review
 
-Start `factory:reviewer` subagents, one for each repo, at most `maxSubagents` at the same time. A reviewer has a new context, so it does not share the assumptions of the builder. Give each reviewer these pointers:
+Start `factory:reviewer` subagents with the model and effort of the `reviewer` role, one for each repo, at most `maxSubagents` at the same time. A reviewer has a new context, so it does not share the assumptions of the builder. Give each reviewer these pointers:
 
 - the worktree path and the diff command `git -C <path> diff origin/main...HEAD`,
 - `.factory/spec.cache.md` and the requirement IDs of the current phase,

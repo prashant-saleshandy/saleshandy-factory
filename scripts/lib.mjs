@@ -15,7 +15,43 @@ export const APPROVAL_OPTIONS = {
   release: 'Approve the release doc',
 };
 
-const DEFAULT_CONFIG = { maxSubagents: 3, contextLimitTokens: 100000 };
+// Model aliases follow the Agent tool and /model: opus, sonnet, haiku, fable.
+// "stages" is the main session of each stage. "agents" is each subagent role.
+const DEFAULT_CONFIG = {
+  maxSubagents: 3,
+  contextLimitTokens: 100000,
+  stages: {
+    context: { model: 'sonnet', effort: 'medium' },
+    spec: { model: 'opus', effort: 'high' },
+    build: { model: 'opus', effort: 'medium' },
+    review: { model: 'opus', effort: 'high' },
+    test: { model: 'sonnet', effort: 'medium' },
+    ship: { model: 'sonnet', effort: 'low' },
+  },
+  agents: {
+    researcher: { model: 'opus', effort: 'medium' },
+    implementer: { model: 'sonnet', effort: 'medium' },
+    'implementer-hard': { model: 'sonnet', effort: 'high' },
+    'implementer-hard-cross-repo': { model: 'opus', effort: 'high' },
+    reviewer: { model: 'opus', effort: 'high' },
+    'release-writer': { model: 'opus', effort: 'medium' },
+  },
+};
+
+// The subagent type of each role. The three implementer roles share one agent definition.
+export const ROLE_AGENT = {
+  researcher: 'researcher',
+  implementer: 'implementer',
+  'implementer-hard': 'implementer',
+  'implementer-hard-cross-repo': 'implementer',
+  reviewer: 'reviewer',
+  'release-writer': 'release-writer',
+};
+
+export function modelAdvice(stage) {
+  const m = config().stages[stage];
+  return m ? `The ${stage} stage runs on ${m.model} at ${m.effort} effort. Type /model ${m.model} and /effort ${m.effort}.` : '';
+}
 
 export function readJson(file, fallback = null) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fallback; }
@@ -29,7 +65,13 @@ export function writeJson(file, data) {
 }
 
 export function config() {
-  return { ...DEFAULT_CONFIG, ...readJson(join(HOME_DIR, 'config.json'), {}) };
+  const user = readJson(join(HOME_DIR, 'config.json'), {});
+  return {
+    ...DEFAULT_CONFIG,
+    ...user,
+    stages: { ...DEFAULT_CONFIG.stages, ...user.stages },
+    agents: { ...DEFAULT_CONFIG.agents, ...user.agents },
+  };
 }
 
 export function now() { return new Date().toISOString(); }
