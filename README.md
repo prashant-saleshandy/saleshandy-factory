@@ -2,8 +2,6 @@
 
 The factory is a Claude Code plugin. It moves a big feature or fix from a Jira ticket to an approved spec, code, review, tests, PRs and a prod release doc. A human approves each gate.
 
-The design is in `docs/design.html`.
-
 ## Install
 
 Install the plugin at user scope. The org repos do not change.
