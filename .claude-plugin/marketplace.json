@@ -1,0 +1,14 @@
+{
+  "name": "saleshandy-factory",
+  "description": "Saleshandy factory plugin for Claude Code",
+  "owner": {
+    "name": "Prashant"
+  },
+  "plugins": [
+    {
+      "name": "factory",
+      "source": "./",
+      "description": "Saleshandy factory workflow"
+    }
+  ]
+}

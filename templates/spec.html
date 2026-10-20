@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec draft</title>
+<style>
+  :root { --bg:#fbfaf7; --fg:#1d1c1a; --muted:#6b6862; --line:#e4e1da; --card:#ffffff; --accent:#8a5a00; --warn:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151412; --fg:#ecebe8; --muted:#a19d95; --line:#2e2c29; --card:#1d1c1a; --accent:#e0b54a; --warn:#f2766b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  h2 { font-size: 21px; margin: 40px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 20px 0 6px; }
+  p, li { overflow-wrap: anywhere; }
+  .meta { color: var(--muted); }
+  .banner { border:1px solid var(--accent); color: var(--accent); border-radius:10px; padding:10px 14px; margin: 16px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:10px 0; }
+  .q { border-left: 3px solid var(--accent); }
+  .risk { border-left: 3px solid var(--warn); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align:left; vertical-align: top; border-bottom:1px solid var(--line); padding:8px; }
+  th { color: var(--muted); font-weight: 600; }
+  code, pre { font-size: 13px; }
+  pre { background: var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; }
+  .cite { color: var(--muted); font-size: 12px; }
+  svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<main>
+  <!-- After approval, the agent adds here: <div class="banner">Superseded by Confluence vN: link</div> -->
+  <h1>{{ticket}} - {{title}}</h1>
+  <p class="meta">Draft {{draft}}. Status: in discussion. Epic: {{epicUrl}}</p>
+
+  <h2 id="summary">Summary</h2>
+  <!-- What we build and why, in five sentences or less. -->
+
+  <h2 id="scope">Scope</h2>
+  <!-- In scope and out of scope, as two short lists. -->
+
+  <h2 id="current">Current system</h2>
+  <!-- Only facts that change the design. Each fact has a citation: <span class="cite">edge/src/x.ts:120</span> -->
+
+  <h2 id="requirements">Requirements</h2>
+  <!-- Each requirement has a stable ID. Later stages refer only to these IDs. Never reuse a removed ID. -->
+  <div class="scroll"><table>
+    <thead><tr><th>ID</th><th>Requirement</th><th>Acceptance criteria</th><th>Repos</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td></td><td></td><td></td><td>P01</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="design">Design</h2>
+  <!-- One h3 for each repo. Name the files, modules, endpoints and queues that change, and why. -->
+
+  <h2 id="data">Data changes</h2>
+  <!-- TypeORM entity changes and their SQL. Note the scale facts that affect the change (row counts, indexes, locks). -->
+
+  <h2 id="phases">Phases</h2>
+  <!-- Only for phased work. Each phase is shippable and testable on staging. -->
+
+  <h2 id="risks">Risks</h2>
+  <!-- <div class="card risk">If X, then Y. Mitigation: Z.</div> -->
+
+  <h2 id="questions">Open questions</h2>
+  <!-- <div class="card q">Q1. Question. Options: A, B. Agent recommendation: A, because ...</div>
+       Remove a question when it is resolved, and put the answer in the right section. -->
+</main>
+</body>
+</html>

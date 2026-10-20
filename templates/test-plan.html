@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test plan</title>
+<style>
+  :root { --bg:#fbfaf7; --fg:#1d1c1a; --muted:#6b6862; --line:#e4e1da; --card:#ffffff; --pass:#1f7a4d; --fail:#b42318; --todo:#8a6d1d; --skip:#6b6862; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151412; --fg:#ecebe8; --muted:#a19d95; --line:#2e2c29; --card:#1d1c1a; --pass:#4ac08a; --fail:#f2766b; --todo:#e0b54a; --skip:#8c887f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .meta { color: var(--muted); margin-bottom: 20px; overflow-wrap:anywhere; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; margin: 12px 0 28px; }
+  .pill { border:1px solid var(--line); border-radius:999px; padding:2px 10px; font-size:13px; }
+  section { margin-top: 28px; }
+  h2 { font-size: 19px; margin: 0 0 10px; }
+  .item { display:grid; grid-template-columns: 26px minmax(0,1fr) auto; gap:10px; align-items:start; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .box { width:18px; height:18px; border:2px solid var(--muted); border-radius:4px; margin-top:3px; display:grid; place-items:center; font-size:12px; font-weight:700; }
+  .pass .box { border-color:var(--pass); background:var(--pass); color:var(--card); }
+  .fail .box { border-color:var(--fail); color:var(--fail); }
+  .title { font-weight:600; overflow-wrap:anywhere; }
+  .how, .note { color: var(--muted); font-size: 14px; overflow-wrap:anywhere; }
+  .note { margin-top:4px; }
+  .fail .note { color: var(--fail); }
+  .tag { font-size:12px; color:var(--muted); white-space:nowrap; }
+  code { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <div class="meta" id="meta"></div>
+  <div class="bar" id="totals"></div>
+  <div id="phases"></div>
+</main>
+<!--
+  The tester edits only the JSON in the next script block.
+  status: "todo" | "pass" | "fail" | "skip". A failed item keeps a note.
+-->
+<script type="application/json" id="plan">
+{
+  "ticket": "{{ticket}}",
+  "title": "{{title}}",
+  "spec": "{{specUrl}}",
+  "updated": "{{date}}",
+  "phases": [
+    {
+      "id": "P01",
+      "title": "{{phaseTitle}}",
+      "items": [
+        { "id": "T1", "req": ["R1"], "title": "", "how": "", "status": "todo", "note": "" }
+      ]
+    }
+  ]
+}
+</script>
+<script>
+  const plan = JSON.parse(document.getElementById('plan').textContent);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  document.title = `Test plan: ${plan.ticket}`;
+  document.getElementById('title').textContent = `${plan.ticket} - ${plan.title}`;
+  const meta = document.getElementById('meta');
+  meta.textContent = `Updated ${plan.updated}. `;
+  if (plan.spec && !plan.spec.startsWith('{{')) { const a = el('a', null, 'Tech analysis'); a.href = plan.spec; meta.append(a); }
+  const counts = { pass: 0, fail: 0, todo: 0, skip: 0 };
+  const root = document.getElementById('phases');
+  for (const phase of plan.phases) {
+    const s = el('section'); s.append(el('h2', null, `${phase.id} - ${phase.title}`));
+    for (const it of phase.items) {
+      counts[it.status] = (counts[it.status] || 0) + 1;
+      const row = el('div', `item ${it.status}`);
+      row.append(el('div', 'box', it.status === 'pass' ? '✓' : it.status === 'fail' ? '✕' : ''));
+      const body = el('div'); body.append(el('div', 'title', `${it.id}. ${it.title}`));
+      if (it.how) body.append(el('div', 'how', it.how));
+      if (it.note) body.append(el('div', 'note', it.note));
+      row.append(body, el('div', 'tag', (it.req || []).join(', ')));
+      s.append(row);
+    }
+    root.append(s);
+  }
+  const totals = document.getElementById('totals');
+  for (const [k, v] of Object.entries(counts)) totals.append(el('span', 'pill', `${k}: ${v}`));
+</script>
+</body>
+</html>
