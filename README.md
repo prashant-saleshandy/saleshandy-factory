@@ -40,6 +40,22 @@ The factory makes `worktrees/<KEY>/` with one git worktree for each repo and a `
 | test | `.factory/test-plan.html` | Credentials |
 | ship | Pushed branches, PRs, test plan share, release doc | Push, merge conflicts, release doc |
 
+## Batch mode
+
+If you give `/factory` a list of small fixes or symptoms, the factory uses batch mode.
+
+```
+/factory
+edge | Cannot read property 'split' of null      SH-20314
+check why reply tracker went down recently
+```
+
+- Triage reads each ticket, or drafts a new ticket from the evidence. You approve the new tickets together.
+- Each fix gets a fix note, its own worktree, branches and PRs. You approve several fix notes in one question. The fix note goes to the Jira ticket as a comment.
+- Each investigation gets a findings report from a read-only investigator subagent. The report goes to Jira as a comment, and you decide what to do next.
+- One test plan covers the batch. No epic, no phases, no Confluence page and no release doc.
+- The batch lives in `worktrees/.batches/<id>/`. `work.mjs batch-status` shows the board.
+
 ## Personal configuration
 
 Your files are in `~/.claude/factory/`. They are not in this repo.
@@ -58,7 +74,7 @@ Your files are in `~/.claude/factory/`. They are not in this repo.
 | PreToolUse on Edit and Write | Blocks code edits until the current spec version has an approval. Blocks edits to state files and staging worktrees. |
 | PreToolUse on Bash | Blocks rebase, force push, a raw push or PR command, and changes to staging worktrees. |
 | PreToolUse on Agent | Blocks more than `maxSubagents` subagents at the same time, and a factory subagent with the wrong model or effort. |
-| PostToolUse on AskUserQuestion | If you select an approval option, records the approval. No other answer counts. |
+| PostToolUse on AskUserQuestion | If you select an approval option, records the approval. One answer can approve several batch items. No other answer counts. |
 | Stop | If the context passes `contextLimitTokens`, tells the agent to write the handoff. |
 
 Outside a factory session, the hooks do nothing, except in a work folder under `worktrees/`.

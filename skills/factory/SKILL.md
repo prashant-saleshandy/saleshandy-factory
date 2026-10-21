@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Saleshandy factory. It moves a big feature or fix from a Jira ticket to PRs and a release doc. Humans approve each gate.
+description: Saleshandy factory. It moves a big feature, or a batch of small fixes and investigations, from Jira tickets to PRs. Humans approve each gate.
 disable-model-invocation: true
 argument-hint: "<ticket, epic link or instruction>"
 ---
@@ -20,6 +20,12 @@ ROOT is the plugin root: two folders above the "Base directory for this skill" l
 - `ROOT/skills/factory/lenses.md` holds the security, UX, UI and code checklists.
 
 The workspace is the folder that holds the Saleshandy repos and `worktrees/`. Each work has a folder `<workspace>/worktrees/<KEY>/`, where KEY is the epic key, for example SH-123456. In this file, `.factory/` means `<workspace>/worktrees/<KEY>/.factory/`.
+
+## Mode
+
+- Batch mode: the request is a list of small items, for example errors, small fixes or symptoms to investigate, or the user says "batch". Read `stages/batch.md` and follow it. It replaces the start and stage order in this file.
+- Normal mode: the request is one feature, one big fix or one epic. Continue with this file.
+- If the mode is not clear, ask the user with AskUserQuestion.
 
 ## Start
 

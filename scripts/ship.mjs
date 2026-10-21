@@ -6,7 +6,7 @@ import { existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { workDirFromPath, factoryDir, loadState, saveState, readJson, writeJson, tryGit, now } from './lib.mjs';
+import { workDirFromPath, factoryDir, loadState, saveState, readJson, writeJson, tryGit, now, batchDir, batchFile } from './lib.mjs';
 
 const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
@@ -15,7 +15,7 @@ const HELP = `ship.mjs commands (inside a work folder):
   push                         push the work branch of each repo (needs the push approval)
   staging                      make or update the staging branch and merge the work branch into it
   prs --summary-file <f>       open or update the draft PR to main and the PR to staging
-  share-test-plan              share .factory/test-plan.html with a password, or update the share
+  share-test-plan              share the test plan with a password, or update the share (a batch shares one plan)
 Options: --work <dir>, --repo <name> (one repo only)`;
 
 const argv = process.argv.slice(2);
@@ -112,10 +112,12 @@ const commands = {
     requirePushApproval();
     const summary = opt['summary-file'] ? readFileSync(opt['summary-file'], 'utf8').trim() : die('--summary-file is required (short points).');
     const specUrl = s.spec?.confluence?.url;
+    // A batch fix has no Confluence page. Its fix note is a comment on the Jira ticket.
+    const contextLine = specUrl ? `- Spec: ${specUrl}` : `- Ticket and fix note: ${s.jiraUrl || s.ticket}`;
     const testPlanUrl = s.testPlan?.url;
     for (const [name, r] of repos) {
       let main = prFor(r.path, r.branch, 'main');
-      const mainBody = fill('pr-main.md', { specUrl, summary, testPlanUrl });
+      const mainBody = fill('pr-main.md', { contextLine, summary, testPlanUrl });
       if (main) gh(r.path, ['pr', 'edit', String(main.number), '--title', mainTitle, '--body', mainBody]);
       else {
         const c = gh(r.path, ['pr', 'create', '--draft', '--base', 'main', '--head', r.branch, '--title', mainTitle, '--body', mainBody]);
@@ -126,7 +128,7 @@ const commands = {
       const stage = r.staging?.[`p${s.phase}`];
       if (!stage) { console.log(`${name}: main PR ${main.url}. No staging branch for this phase yet.`); continue; }
       let st = prFor(r.path, stage.branch, 'staging');
-      const stBody = fill('pr-staging.md', { specUrl, mainPrUrl: main.url, summary, testPlanUrl });
+      const stBody = fill('pr-staging.md', { contextLine, mainPrUrl: main.url, summary, testPlanUrl });
       if (st) gh(r.path, ['pr', 'edit', String(st.number), '--title', stagingTitle, '--body', stBody]);
       else {
         const c = gh(r.path, ['pr', 'create', '--base', 'staging', '--head', stage.branch, '--title', stagingTitle, '--body', stBody]);
@@ -140,9 +142,10 @@ const commands = {
   },
 
   'share-test-plan'() {
-    const file = join(factoryDir(work), 'test-plan.html');
+    const home = s.mode === 'batch' && s.batch ? batchDir(s.workspace, s.batch) : factoryDir(work);
+    const file = join(home, 'test-plan.html');
     if (!existsSync(file)) die('No .factory/test-plan.html.');
-    const secretsFile = join(factoryDir(work), 'secrets.json');
+    const secretsFile = join(home, 'secrets.json');
     const secrets = readJson(secretsFile, {});
     const prev = secrets.testPlanShare;
     const args = ['-y', 'lavish-axi', 'share', file];
@@ -165,7 +168,14 @@ const commands = {
     writeJson(secretsFile, secrets);
     s.testPlan = { url: share.url };
     saveState(work, s);
-    console.log(`test plan: ${share.url}${prev ? ' (updated in place)' : ''}\nThe password and update key are in .factory/secrets.json. Do not print the password unless the user asks.`);
+    if (s.mode === 'batch' && s.batch) {
+      for (const item of readJson(batchFile(s.workspace, s.batch))?.items || []) {
+        if (!item.work || item.work === work) continue;
+        const other = loadState(item.work);
+        if (other) { other.testPlan = { url: share.url }; saveState(item.work, other); }
+      }
+    }
+    console.log(`test plan: ${share.url}${prev ? ' (updated in place)' : ''}\nThe password and update key are in ${secretsFile}. Do not print the password unless the user asks.`);
   },
 };
 

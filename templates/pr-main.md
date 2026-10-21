@@ -1,5 +1,5 @@
 ## Context
-- Spec: {{specUrl}}
+{{contextLine}}
 
 ## Summary
 {{summary}}

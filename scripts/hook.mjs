@@ -2,11 +2,11 @@
 // One entry point for all factory hooks: node hook.mjs <event>.
 // A hook must never break a session, so each handler fails open, except for the rules it enforces.
 import { existsSync, openSync, readSync, fstatSync, closeSync, mkdirSync, rmSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { join, relative, sep, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
   APPROVAL_OPTIONS, HOME_DIR, ROLE_AGENT, modelAdvice, readJson, writeJson, readStdinJson, config, now, workDirFromPath,
-  loadState, saveState, specGate, fileHash, factoryDir, sessionFile, sessionWork,
+  loadState, saveState, specGate, fileHash, factoryDir, sessionFile, sessionWork, sessionBatch, sessionWorks,
 } from './lib.mjs';
 
 const event = process.argv[2];
@@ -35,13 +35,33 @@ function attach(workDir) {
 
 // ---------- session events ----------
 
+function batchStatusText(file) {
+  const b = readJson(file);
+  if (!b) return null;
+  try {
+    return execFileSync(process.execPath, [join(import.meta.dirname, 'work.mjs'), 'batch-status', '--batch', b.id, '--workspace', b.workspace], { encoding: 'utf8' }).trim();
+  } catch { return null; }
+}
+
 function onSessionStart() {
   if (!sid) return;
   let work = sessionWork(sid);
-  if (!work && input.source === 'clear') {
-    // /clear starts a new session ID. Continue the work of the last factory session if it is recent.
+  let batch = sessionBatch(sid);
+  if (!work && !batch && input.source === 'clear') {
+    // /clear starts a new session ID. Continue the work or batch of the last factory session if it is recent.
     const last = readJson(LAST_FILE);
-    if (last?.workDir && Date.now() - Date.parse(last.at) < 12 * 3600e3 && existsSync(last.workDir)) { attach(last.workDir); work = last.workDir; }
+    const recent = last && Date.now() - Date.parse(last.at) < 12 * 3600e3;
+    if (recent && last.workDir && existsSync(last.workDir)) { attach(last.workDir); work = last.workDir; }
+    else if (recent && last.batchFile && existsSync(last.batchFile)) {
+      writeJson(sessionFile(sid), { workDir: null, batchFile: last.batchFile, at: now() });
+      batch = last.batchFile;
+    }
+  }
+  if (batch) {
+    const board = batchStatusText(batch);
+    const want = config().stages.batch;
+    if (board) context('SessionStart', `Factory batch session (id ${sid}). Board:\n${board}\nModel: this session runs on ${input.model || 'an unknown model'}. ${modelAdvice('batch')} If the session model is not ${want.model}, tell the user this in one sentence.\nContinue with the factory skill, file stages/batch.md.`);
+    return;
   }
   if (!work) {
     const here = workDirFromPath(input.cwd);
@@ -67,6 +87,9 @@ function onUserPromptSubmit() {
 
 function onEdit() {
   const file = input.tool_input?.file_path || input.tool_input?.notebook_path;
+  if (file && /[\\/]worktrees[\\/]\.batches[\\/]/.test(file) && ['batch.json', 'secrets.json'].includes(basename(file))) {
+    deny(`${basename(file)} changes only through work.mjs and ship.mjs.`);
+  }
   const work = workDirFromPath(file);
   if (!work) return;
   const rel = relative(work, file);
@@ -82,7 +105,7 @@ function onEdit() {
   const state = loadState(work);
   if (!state?.repos?.[top]) return;
   const gate = specGate(work, state);
-  if (!gate.open) deny(`Code edits are blocked: ${gate.why} Update the spec and get approval first.`);
+  if (!gate.open) deny(`Code edits are blocked: ${gate.why} ${state.mode === 'batch' ? 'Get approval for the fix note first.' : 'Update the spec and get approval first.'}`);
 }
 
 // ---------- bash rules ----------
@@ -98,32 +121,61 @@ function onBash() {
   if (!viaScript && /\.staging\//.test(cmd)) deny('Staging worktrees change only through "ship.mjs staging". On a merge conflict, stop and tell the user.');
   if (!viaScript && /\bgit\b[^|;&]*\bpush\b/.test(cmd)) deny('Push with "ship.mjs push" after the user approves the push.');
   if (!viaScript && /\bgh\s+pr\s+(create|edit|ready|merge)\b/.test(cmd)) deny('Open and update PRs with "ship.mjs prs".');
-  if (!viaScript && /(state|secrets)\.json|spec\.cache\.md/.test(cmd) && /(>|\btee\b|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|writeFile)/.test(cmd)) deny('Factory state files change only through work.mjs and ship.mjs.');
+  if (!viaScript && /(state|secrets|batch)\.json|spec\.cache\.md/.test(cmd) && /(>|\btee\b|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|writeFile)/.test(cmd)) deny('Factory state files change only through work.mjs and ship.mjs.');
 }
 
 // ---------- approvals ----------
 
-function onAskUserQuestion() {
-  const work = sessionWork(sid);
-  if (!work) return;
-  const s = loadState(work);
-  if (!s?.pending) return;
-  const answers = Object.values(input.tool_response?.answers || {}).map((a) => String(a).trim());
-  const label = APPROVAL_OPTIONS[s.pending.kind];
-  const pending = s.pending;
-  s.pending = null;
-  if (!answers.includes(label)) { saveState(work, s); return; }
-  if (pending.kind === 'spec') {
-    const page = s.spec?.confluence;
-    const stillSame = pending.version ? page?.version === pending.version : fileHash(join(factoryDir(work), 'spec.html')) === pending.draftHash;
-    if (!stillSame) {
-      saveState(work, s);
-      context('PostToolUse', '[factory] The spec changed after the approval question. The approval is NOT recorded. Ask again.');
-    }
+// The selected labels of all questions. A multi-select answer joins its labels with commas.
+function selectedLabels() {
+  const out = new Set();
+  for (const a of Object.values(input.tool_response?.answers || {})) {
+    const text = String(a).trim();
+    out.add(text);
+    for (const part of text.split(/\s*,\s*|\n/)) if (part) out.add(part.trim());
   }
-  s.approvals = { ...s.approvals, [pending.kind]: { ...pending, at: now() } };
-  saveState(work, s);
-  context('PostToolUse', `[factory] Recorded: ${label}.`);
+  return out;
+}
+
+function offeredLabels() {
+  const out = new Set();
+  for (const q of input.tool_input?.questions || []) for (const o of q.options || []) out.add(String(o.label).trim());
+  return out;
+}
+
+// An approval counts only when the user selects the exact label of a pending approval.
+// The current file must still match the hash or version from the time of the question.
+function stillSame(work, s, p) {
+  if (p.kind === 'fixnote') return fileHash(join(factoryDir(work), 'fix-note.md')) === p.hash;
+  if (p.kind === 'spec') {
+    const page = s.spec?.confluence;
+    return p.version ? page?.version === p.version : fileHash(join(factoryDir(work), 'spec.html')) === p.draftHash;
+  }
+  return true;
+}
+
+function onAskUserQuestion() {
+  const offered = offeredLabels();
+  const selected = selectedLabels();
+  const recorded = [];
+  const changed = [];
+  for (const work of sessionWorks(sid)) {
+    const s = loadState(work);
+    const p = s?.pending;
+    if (!p) continue;
+    const label = p.label || APPROVAL_OPTIONS[p.kind];
+    if (!offered.has(label)) continue;
+    s.pending = null;
+    if (selected.has(label)) {
+      if (stillSame(work, s, p)) { s.approvals = { ...s.approvals, [p.kind]: { ...p, at: now() } }; recorded.push(label); }
+      else changed.push(label);
+    }
+    saveState(work, s);
+  }
+  const msg = [];
+  if (recorded.length) msg.push(`[factory] Recorded: ${recorded.join(', ')}.`);
+  if (changed.length) msg.push(`[factory] NOT recorded, because the file changed after the question: ${changed.join(', ')}. Ask again.`);
+  if (msg.length) context('PostToolUse', msg.join(' '));
 }
 
 // ---------- subagent limit ----------

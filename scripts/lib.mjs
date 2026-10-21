@@ -15,6 +15,12 @@ export const APPROVAL_OPTIONS = {
   release: 'Approve the release doc',
 };
 
+// In batch mode, one question can approve several items. Each label names its ticket.
+export const BATCH_OPTIONS = {
+  fixnote: (key) => `Approve ${key}`,
+  push: (key) => `Push ${key}`,
+};
+
 // Model aliases follow the Agent tool and /model: opus, sonnet, haiku, fable.
 // "stages" is the main session of each stage. "agents" is each subagent role.
 const DEFAULT_CONFIG = {
@@ -27,6 +33,7 @@ const DEFAULT_CONFIG = {
     review: { model: 'opus', effort: 'high' },
     test: { model: 'sonnet', effort: 'medium' },
     ship: { model: 'sonnet', effort: 'low' },
+    batch: { model: 'opus', effort: 'medium' },
   },
   agents: {
     researcher: { model: 'opus', effort: 'medium' },
@@ -35,6 +42,7 @@ const DEFAULT_CONFIG = {
     'implementer-hard-cross-repo': { model: 'opus', effort: 'high' },
     reviewer: { model: 'opus', effort: 'high' },
     'release-writer': { model: 'opus', effort: 'medium' },
+    investigator: { model: 'opus', effort: 'high' },
   },
 };
 
@@ -46,6 +54,7 @@ export const ROLE_AGENT = {
   'implementer-hard-cross-repo': 'implementer',
   reviewer: 'reviewer',
   'release-writer': 'release-writer',
+  investigator: 'investigator',
 };
 
 export function modelAdvice(stage) {
@@ -111,6 +120,13 @@ export function isInside(child, parent) {
 // The spec gate is open only when the current spec has a matching approval.
 // Before publish, the draft hash must match. After publish, the Confluence version must match.
 export function specGate(workDir, state) {
+  if (state.mode === 'batch') {
+    // A batch fix has a fix note in place of a spec. Its approval holds the hash of the note.
+    const n = state.approvals?.fixnote;
+    if (!n) return { open: false, why: 'The fix note has no approval.' };
+    if (n.hash === fileHash(join(factoryDir(workDir), 'fix-note.md'))) return { open: true };
+    return { open: false, why: 'fix-note.md changed after the approval.' };
+  }
   const a = state.approvals?.spec;
   if (!a) return { open: false, why: 'The spec has no approval.' };
   const page = state.spec?.confluence;
@@ -136,6 +152,25 @@ export function sessionFile(sessionId) { return join(SESSIONS_DIR, `${sessionId}
 export function sessionWork(sessionId) {
   if (!sessionId) return null;
   return readJson(sessionFile(sessionId))?.workDir ?? null;
+}
+
+// A batch lives in <workspace>/worktrees/.batches/<id>/ with batch.json, the test plan, reports and secrets.
+export function batchDir(workspace, id) { return join(workspace, 'worktrees', '.batches', id); }
+export function batchFile(workspace, id) { return join(batchDir(workspace, id), 'batch.json'); }
+export function sessionBatch(sessionId) {
+  if (!sessionId) return null;
+  return readJson(sessionFile(sessionId))?.batchFile ?? null;
+}
+
+// The work folders that a session can approve: its own work and each fix of its batch.
+export function sessionWorks(sessionId) {
+  const works = new Set();
+  const own = sessionWork(sessionId);
+  if (own) works.add(own);
+  const bf = sessionBatch(sessionId);
+  const batch = bf ? readJson(bf) : null;
+  for (const item of batch?.items || []) if (item.work) works.add(item.work);
+  return [...works];
 }
 
 export function readStdinJson() {

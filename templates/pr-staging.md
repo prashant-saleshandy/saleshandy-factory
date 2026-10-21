@@ -1,5 +1,5 @@
 ## Context
-- Spec: {{specUrl}}
+{{contextLine}}
 - Main PR: {{mainPrUrl}}
 
 ## Summary
